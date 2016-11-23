@@ -29,7 +29,7 @@ let ES_COMMON_QUERY_PARAMETERS = [
 /// ESParams
 public typealias ESParams = Dictionary<String, String>
 
-extension Dictionary where Key: ExpressibleByStringLiteral, Value: ExpressibleByStringLiteral {
+extension Dictionary {
     /// Returns the value of the specified key or the default value given
     public func value(of key: Key, or defaultValue: Value) -> Value {
         return self[key] ?? defaultValue
@@ -85,13 +85,13 @@ extension Dictionary where Key: ExpressibleByStringLiteral, Value: ExpressibleBy
 
 /// Escapes the given string for use with ES API
 extension String {
-    func esEscape() -> String {
+    func elasticsearchEscape() -> String {
         return self.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? self
     }
 }
 
 /// Takes an array of strings representing a path and returns a clean path string
-func esPathify(_ path: String ...) -> String {
+public func esPathify(_ path: String ...) -> String {
     var stripCharacters = CharacterSet.whitespacesAndNewlines
     stripCharacters.insert("/")
     return
@@ -101,9 +101,9 @@ func esPathify(_ path: String ...) -> String {
 }
 
 /// Creates a comma separated list from the given arguements
-func esListify(_ list: String ...) -> String {
+public func esListify(_ list: String ...) -> String {
     return
         list.filter { !$0.isEmpty }
-            .map { $0.esEscape() }
+            .map { $0.elasticsearchEscape() }
             .joined(separator: ",")
 }
