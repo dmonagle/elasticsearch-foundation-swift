@@ -23,7 +23,7 @@ class TransportTest: XCTestCase {
     
     func testRequest() throws {
         let transport = ESTransport()
-        try transport.addConnection(ESConnection(url: URLComponents(string: "http://localhost:9200")!))
+        try transport.addHost(string: "http://localhost:9200")
         
         let response = transport.request(method: .GET)
         switch response {
@@ -38,4 +38,21 @@ class TransportTest: XCTestCase {
         let sniffer = ESSniffer(transport: transport)
         debugPrint(sniffer.hosts())
     }
+
+    func testRequestWithGetBody() throws {
+        var settings = ESTransportSettings()
+        settings.maxRetries = 0
+        let transport = ESTransport(settings: settings)
+        try transport.addHost(string: "http://localhost:9200")
+        let response = transport.request(method: .GET, path: "_count", requestBody: "{ \"query\": { \"match_all\": {} } }")
+        switch response {
+        case .failure(let error):
+            debugPrint("Error!")
+            debugPrint(error)
+        case .success(let response):
+            debugPrint("Success!")
+            debugPrint(response)
+        }
+    }
+
 }

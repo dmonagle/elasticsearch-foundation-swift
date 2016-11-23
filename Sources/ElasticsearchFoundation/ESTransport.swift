@@ -23,10 +23,11 @@ public enum ESResponse {
 
 public struct ESTransportSettings {
     var reloadOnFailure : Bool = true
-    var reloadAfter : Int = 10000 // Requests
-    var resurrectAfter : Int = 60 // Seconds
-    var maxRetries = 3 // Requests
-    var baseConnectionTimeout : TimeInterval = 60 // The base time a connection stays dead for
+    var reloadAfter : Int = 10000 /// Requests
+    var resurrectAfter : Int = 60 /// Seconds
+    var maxRetries = 3 /// Requests
+    var baseConnectionTimeout : TimeInterval = 60 /// The base time a connection stays dead for
+    var requestTimeout : TimeInterval = 15 /// Timeout for each HTTPRequest
 }
 
 open class ESTransport {
@@ -51,7 +52,13 @@ open class ESTransport {
     }
     
     public func addHost(url: URLComponents) throws {
-        try _connectionPool.add(connection: ESConnection(url: url, baseTimeout: _settings.baseConnectionTimeout))
+        try addConnection(ESConnection(url: url, baseTimeout: _settings.baseConnectionTimeout))
+    }
+    
+    public func addHost(string: String) throws {
+        if let url = URLComponents(string: string) {
+            try addHost(url: url)
+        }
     }
     
     
@@ -106,37 +113,52 @@ open class ESTransport {
         }
     }
     
-    public func request(connection: ESConnection? = nil, method: RequestMethod, path: String = "", parameters: ESParams = [:], requestBody: String = "", callback: @escaping (ESResponse) -> ()) {
+    public func request(connection: ESConnection? = nil, method: RequestMethod, path: String = "", parameters: ESParams = [:], requestBody: String? = nil, callback: @escaping (ESResponse) -> ()) {
         if let connection = connection ?? getConnection() {
             
             if let url = connection.host.url {
                 let requestURL = url.appendingPathComponent(path)
                 var request = URLRequest(url: requestURL)
                 request.httpMethod = method.rawValue
-                request.httpBody = requestBody.data(using: .utf8)
+                request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                request.timeoutInterval = _settings.requestTimeout
+                if let body = requestBody {
+                    request.httpBody = body.data(using: .utf8)
+                    // As there is an issue sending a body with a GET, we take the advice of Elasticsearch and change the request to a .POST
+                    //
+                    // From https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-body.html
+                    // Both HTTP GET and HTTP POST can be used to execute search with body. Since not all clients support GET with body, POST is allowed as well.
+                    if (method == .GET) {
+                        request.httpMethod = "POST"
+                    }
+                }
                 
                 let task = URLSession.shared.dataTask(with: request) {
                     (data, response, error) in
-                    let response = response as! HTTPURLResponse
                     if let error = error {
                         callback(.failure(.requestError(error, data)))
                     }
                     else {
-                        if let data = data {
-                            if let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String: Any] {
-                                if response.statusCode >= 200 && response.statusCode < 300 {
-                                    callback(.success(json))
+                        if let httpResponse = response as? HTTPURLResponse {
+                            if let data = data {
+                                if let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String: Any] {
+                                    if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                                        callback(.success(json))
+                                    }
+                                    else {
+                                        callback(.failure(.apiError(httpResponse, json)))
+                                    }
                                 }
                                 else {
-                                    callback(.failure(.apiError(response, json)))
+                                    callback(.failure(.invalidJsonResponse(data)))
                                 }
                             }
                             else {
-                                callback(.failure(.invalidJsonResponse(data)))
+                                callback(.success([:]))
                             }
                         }
                         else {
-                            callback(.success([:]))
+                            callback(.failure(.invalidHttpResponse(response)))
                         }
                     }
                 }
@@ -164,13 +186,21 @@ open class ESTransport {
                 case .success:
                     result = response
                 case .failure(let error):
-                    if (retries == self._settings.maxRetries) {
-                        debugPrint("Max retries reached")
-                        result = .failure(error)
-                    }
-                    else {
-                        retries += 1
-                        debugPrint("Retry \(retries)")
+                    switch error {
+                        
+                    case .apiError(_, _):
+                        // Do not retry for these error types
+                        result = response // No more retrying
+                    default:
+                        // Retry
+                        if (retries == self._settings.maxRetries) {
+                            debugPrint("Max retries reached")
+                            result = response // No more retrying
+                        }
+                        else {
+                            retries += 1
+                            debugPrint("Retry \(retries)")
+                        }
                     }
                 }
                 semaphore.signal()
