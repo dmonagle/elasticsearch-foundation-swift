@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import Elasticsearch
+@testable import ElasticsearchFoundation
 
 class ParametersTest: XCTestCase {
     
