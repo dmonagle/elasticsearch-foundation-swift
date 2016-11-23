@@ -12,6 +12,7 @@ public enum ESError : Error {
     case invalidConnection(ESConnection)
     case noConnectionsAvailable
     case requestError(Error, Data?)
+    case invalidHttpResponse(URLResponse?)
     case invalidJsonResponse(Data)
     case missingRequiredParameter(String)
     case emptyRequiredParameter(String)
@@ -28,6 +29,8 @@ extension ESError : CustomStringConvertible {
             return "No connections available"
         case .requestError(let error, let data):
             return "Request Error: \(error)\n\(data)"
+        case .invalidHttpResponse(let response):
+            return "Did not get a valid HTTP response: \n\(response)"
         case .invalidJsonResponse(let data):
             return "Invalid JSON response: \n\(data)"
         case .missingRequiredParameter(let name):
