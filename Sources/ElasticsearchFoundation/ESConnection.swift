@@ -172,18 +172,24 @@ public class ConnectionPool {
 // MARK: - Selectors
 
 protocol ConnectionSelector {
-    func select(fromPool pool: ConnectionPool) -> UInt32
-}
-
-struct RandomSelector : ConnectionSelector {
-    func select(fromPool pool: ConnectionPool) -> UInt32 {
-        return arc4random_uniform(pool.length)
-    }
+    mutating func select(fromPool pool: ConnectionPool) -> UInt32
 }
 
 struct RoundRobinSelector : ConnectionSelector {
-    func select(fromPool pool: ConnectionPool) -> UInt32 {
-        return arc4random_uniform(pool.length)
+    private var _current : UInt32 = 0
+    
+    mutating func select(fromPool pool: ConnectionPool) -> UInt32 {
+        let result : UInt32
+        if (_current >= pool.length) {
+            _current = 0
+            result = 0
+        }
+        else {
+            result = _current
+            _current += 1
+        }
+        
+        return result
     }
 }
 

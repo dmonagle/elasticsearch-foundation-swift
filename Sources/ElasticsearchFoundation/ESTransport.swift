@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 
 public enum RequestMethod : String {
     case HEAD
