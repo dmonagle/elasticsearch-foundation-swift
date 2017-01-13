@@ -25,14 +25,23 @@ class TransportTest: XCTestCase {
         let transport = ESTransport()
         try transport.addHost(string: "http://localhost:9200")
         
-        let response = transport.request(method: .GET)
+        let response = transport.requestDict(method: .GET)
         switch response {
-        case .failure(let error):
+        case .error(let error):
             debugPrint("Error!")
-            debugPrint(error)
-        case .success(let response):
+            switch (error) {
+            case .invalidJsonResponse(let data):
+                debugPrint(String(data: data, encoding: String.Encoding.utf8) ?? "")
+
+            default:
+                debugPrint(error)
+            }
+        case .dict(let response, let json):
             debugPrint("Success!")
             debugPrint(response)
+            debugPrint(json)
+        default:
+            fatalError()
         }
         
         let sniffer = ESSniffer(transport: transport)
@@ -44,14 +53,17 @@ class TransportTest: XCTestCase {
         settings.maxRetries = 0
         let transport = ESTransport(settings: settings)
         try transport.addHost(string: "http://localhost:9200")
-        let response = transport.request(method: .GET, path: "_count", requestBody: "{ \"query\": { \"match_all\": {} } }")
+        let response = transport.requestDict(method: .GET, path: "_count", requestBody: "{ \"query\": { \"match_all\": {} } }")
         switch response {
-        case .failure(let error):
+        case .error(let error):
             debugPrint("Error!")
             debugPrint(error)
-        case .success(let response):
+        case .dict(let response, let json):
             debugPrint("Success!")
             debugPrint(response)
+            debugPrint(json)
+        default:
+            fatalError()
         }
     }
 

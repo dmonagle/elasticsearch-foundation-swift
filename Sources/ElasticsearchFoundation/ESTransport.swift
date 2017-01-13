@@ -18,8 +18,9 @@ public enum RequestMethod : String {
 }
 
 public enum ESResponse {
-    case success(Dictionary<String, Any>)
-    case failure(ESError)
+    case dict(HTTPURLResponse, Dictionary<String, Any>)
+    case data(HTTPURLResponse, Data?)
+    case error(ESError)
 }
 
 public struct ESTransportSettings {
@@ -137,44 +138,34 @@ open class ESTransport {
                 let task = URLSession.shared.dataTask(with: request) {
                     (data, response, error) in
                     if let error = error {
-                        callback(.failure(.requestError(error, data)))
+                        callback(.error(.requestError(error, data)))
                     }
                     else {
                         if let httpResponse = response as? HTTPURLResponse {
                             if let data = data {
-                                if let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String: Any] {
-                                    if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
-                                        callback(.success(json))
-                                    }
-                                    else {
-                                        callback(.failure(.apiError(httpResponse, json)))
-                                    }
-                                }
-                                else {
-                                    callback(.failure(.invalidJsonResponse(data)))
-                                }
+                                callback(.data(httpResponse, data))
                             }
                             else {
-                                callback(.success([:]))
+                                callback(.data(httpResponse, nil))
                             }
                         }
                         else {
-                            callback(.failure(.invalidHttpResponse(response)))
+                            callback(.error(.invalidHttpResponse(response)))
                         }
                     }
                 }
                 task.resume()
             }
             else {
-                callback(.failure(ESError.invalidConnection(connection)))
+                callback(.error(ESError.invalidConnection(connection)))
             }
         }
         else {
-            callback(.failure(ESError.noConnectionsAvailable))
+            callback(.error(ESError.noConnectionsAvailable))
         }
     }
     
-    public func request(connection: ESConnection? = nil, method: RequestMethod, path: String = "", parameters: ESParams = [:], requestBody: String = "") -> ESResponse {
+    public func request(connection: ESConnection? = nil, method: RequestMethod, path: String = "", parameters: ESParams = [:], requestBody: String? = nil) -> ESResponse {
         var result : ESResponse?
         let semaphore = DispatchSemaphore(value: 0)
 
@@ -184,9 +175,7 @@ open class ESTransport {
             request(connection: connection, method: method, path: path, parameters: parameters, requestBody: requestBody) {
                 response in
                 switch response {
-                case .success:
-                    result = response
-                case .failure(let error):
+                case .error(let error):
                     switch error {
                         
                     case .apiError(_, _):
@@ -203,13 +192,40 @@ open class ESTransport {
                             debugPrint("Retry \(retries)")
                         }
                     }
+                default:
+                    result = response
                 }
+
                 semaphore.signal()
             }
             semaphore.wait()
         } while (result == nil)
 
         return result!
+    }
+    
+    public func requestDict(connection: ESConnection? = nil, method: RequestMethod, path: String = "", parameters: ESParams = [:], requestBody: String? = nil) -> ESResponse {
+        let response = request(connection: connection, method: method, path: path, parameters: parameters, requestBody: requestBody)
+        
+        switch (response) {
+        case .data(let httpResponse, let data):
+            if let data = data {
+                if let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String: Any] {
+                    if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                        return .dict(httpResponse, json)
+                    }
+                    else {
+                        return .error(.apiError(httpResponse, json))
+                    }
+                }
+                else {
+                    return .error(.invalidJsonResponse(data))
+                }
+            }
+        default:
+            break
+        }
+        return response
     }
 }
 

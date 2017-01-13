@@ -10,9 +10,9 @@ class ESSniffer {
     
     /// Returns an array of URLComponents (hosts) queried from the transport
     func hosts() -> [URLComponents] {
-        let response = transport.request(method: .GET, path: "_nodes/http")
+        let response = transport.requestDict(method: .GET, path: "_nodes/http")
         switch response {
-        case .success(let json):
+        case .dict(_, let json):
             guard let nodes = json["nodes"] as? [String: Any] else { return [] }
             
             var result : [URLComponents] = []
