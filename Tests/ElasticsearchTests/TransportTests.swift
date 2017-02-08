@@ -25,21 +25,21 @@ class TransportTest: XCTestCase {
         let transport = ESTransport()
         try transport.addHost(string: "http://localhost:9200")
         
-        let response = transport.requestDict(method: .GET)
+        let response = transport.request(method: .GET)
         switch response {
         case .error(let error):
             debugPrint("Error!")
             switch (error) {
             case .invalidJsonResponse(let data):
-                debugPrint(String(data: data, encoding: String.Encoding.utf8) ?? "")
+                debugPrint(String(data: data, encoding: String.Encoding.utf8))
 
             default:
                 debugPrint(error)
             }
-        case .dict(let response, let json):
+        case .ok(let response, let body):
             debugPrint("Success!")
             debugPrint(response)
-            debugPrint(json)
+            debugPrint(body)
         default:
             fatalError()
         }
@@ -53,15 +53,15 @@ class TransportTest: XCTestCase {
         settings.maxRetries = 0
         let transport = ESTransport(settings: settings)
         try transport.addHost(string: "http://localhost:9200")
-        let response = transport.requestDict(method: .GET, path: "_count", requestBody: "{ \"query\": { \"match_all\": {} } }")
+        let response = transport.request(method: .GET, path: "_count", requestBody: "{ \"query\": { \"match_all\": {} } }")
         switch response {
         case .error(let error):
             debugPrint("Error!")
             debugPrint(error)
-        case .dict(let response, let json):
+        case .ok(let response, let body):
             debugPrint("Success!")
             debugPrint(response)
-            debugPrint(json)
+            debugPrint(body)
         default:
             fatalError()
         }

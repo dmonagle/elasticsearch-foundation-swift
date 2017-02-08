@@ -18,13 +18,31 @@ public enum RequestMethod : String {
 }
 
 public enum ESResponse {
-    case dict(HTTPURLResponse, Dictionary<String, Any>)
-    case data(HTTPURLResponse, Data?)
+    case ok(HTTPURLResponse, ESResponseBody?)
     case error(ESError)
 }
 
+public struct ESResponseBody : CustomStringConvertible {
+    public var data : Data
+    
+    public init(data: Data) { self.data = data }
+    
+    public func toDict() -> Dictionary<String, Any>? {
+        if let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String: Any] {
+            return json
+        }
+        else {
+            return nil
+        }
+    }
+    
+    public var description: String {
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+}
+
 public struct ESTransportSettings {
-    var reloadOnFailure : Bool = true
+    var retryOnFailure : Bool = true
     var reloadAfter : Int = 10000 /// Requests
     var resurrectAfter : Int = 60 /// Seconds
     var maxRetries = 3 /// Requests
@@ -72,14 +90,14 @@ open class ESTransport {
         }
     }
     
-    /// Returns a connection from the connection pool by delegating to Collection.
-    ///
-    /// Resurrects dead connection if the `resurrectAfter` timeout has passed.
-    /// Increments the counter and performs connection reloading if the `reload_connections` option is set.
-    ///
-    /// @return [Connections::ESConnection]
-    /// @see    Connections::Collection///get_connection
-    ///
+    /** 
+        Returns a connection from the connection pool by delegating to Collection.
+ 
+        Resurrects dead connection if the resurrectAfter timeout has passed.
+        Increments the counter and performs connection reloading if the `reload_connections` option is set.
+ 
+        - returns: ESConnection
+     */
     public func getConnection() -> ESConnection? {
         if (_connectionPool.length == 0) { buildConnections() }
         // Reload connections if we've hit the reloadAfter
@@ -115,6 +133,9 @@ open class ESTransport {
         }
     }
     
+    /**
+        Makes an asynchronous request and calls the callback method, passing in the `ESResponse`
+    **/
     public func request(connection: ESConnection? = nil, method: RequestMethod, path: String = "", parameters: ESParams = [:], requestBody: String? = nil, callback: @escaping (ESResponse) -> ()) {
         if let connection = connection ?? getConnection() {
             
@@ -138,15 +159,15 @@ open class ESTransport {
                 let task = URLSession.shared.dataTask(with: request) {
                     (data, response, error) in
                     if let error = error {
-                        callback(.error(.requestError(error, data)))
+                        callback(.error(.requestError(response, error, data)))
                     }
                     else {
                         if let httpResponse = response as? HTTPURLResponse {
                             if let data = data {
-                                callback(.data(httpResponse, data))
+                                callback(.ok(httpResponse, ESResponseBody(data: data)))
                             }
                             else {
-                                callback(.data(httpResponse, nil))
+                                callback(.ok(httpResponse, nil))
                             }
                         }
                         else {
@@ -183,7 +204,7 @@ open class ESTransport {
                         result = response // No more retrying
                     default:
                         // Retry
-                        if (retries == self._settings.maxRetries) {
+                        if (!self._settings.retryOnFailure || retries == self._settings.maxRetries) {
                             debugPrint("Max retries reached")
                             result = response // No more retrying
                         }
@@ -202,30 +223,6 @@ open class ESTransport {
         } while (result == nil)
 
         return result!
-    }
-    
-    public func requestDict(connection: ESConnection? = nil, method: RequestMethod, path: String = "", parameters: ESParams = [:], requestBody: String? = nil) -> ESResponse {
-        let response = request(connection: connection, method: method, path: path, parameters: parameters, requestBody: requestBody)
-        
-        switch (response) {
-        case .data(let httpResponse, let data):
-            if let data = data {
-                if let json = try? JSONSerialization.jsonObject(with: data, options: []) as! [String: Any] {
-                    if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
-                        return .dict(httpResponse, json)
-                    }
-                    else {
-                        return .error(.apiError(httpResponse, json))
-                    }
-                }
-                else {
-                    return .error(.invalidJsonResponse(data))
-                }
-            }
-        default:
-            break
-        }
-        return response
     }
 }
 

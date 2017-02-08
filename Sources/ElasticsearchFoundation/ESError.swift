@@ -11,12 +11,12 @@ import Foundation
 public enum ESError : Error {
     case invalidConnection(ESConnection)
     case noConnectionsAvailable
-    case requestError(Error, Data?)
+    case requestError(URLResponse?, Error, Data?)
     case invalidHttpResponse(URLResponse?)
     case invalidJsonResponse(Data)
     case missingRequiredParameter(String)
     case emptyRequiredParameter(String)
-    case apiError(HTTPURLResponse, Dictionary<String, Any>)
+    case apiError(HTTPURLResponse, ESResponseBody)
     case unknown
 }
 
@@ -27,8 +27,8 @@ extension ESError : CustomStringConvertible {
             return "Attempted to add a connection to a ConnectionPool but it has no valid URL: \(connection)"
         case .noConnectionsAvailable:
             return "No connections available"
-        case .requestError(let error, let data):
-            return "Request Error: \(error)\n\(data)"
+        case .requestError(let response, let error, let data):
+            return "Request Error: \(error)\n\(response)\n\(data)"
         case .invalidHttpResponse(let response):
             return "Did not get a valid HTTP response: \n\(response)"
         case .invalidJsonResponse(let data):

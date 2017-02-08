@@ -23,8 +23,4 @@ public class ESClientFoundation {
     public func request(method: RequestMethod = .GET, path: String = "", parameters: ESParams = [:], requestBody: String? = nil) -> ESResponse {
         return _transport.request(method: method, path: path, parameters: parameters, requestBody: requestBody)
     }
-
-    public func requestDict(method: RequestMethod = .GET, path: String = "", parameters: ESParams = [:], requestBody: String? = nil) -> ESResponse {
-        return _transport.requestDict(method: method, path: path, parameters: parameters, requestBody: requestBody)
-    }
 }
