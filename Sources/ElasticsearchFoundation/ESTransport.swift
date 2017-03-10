@@ -56,6 +56,7 @@ open class ESTransport {
     internal var _connectionPool : ConnectionPool = ConnectionPool()
     internal var _connectionCounter : Int = 0
     internal var _settings : ESTransportSettings
+    internal let session = URLSession(configuration: URLSessionConfiguration.default)
     
     public init(settings: ESTransportSettings? = nil) {
         if let s = settings {
@@ -156,7 +157,7 @@ open class ESTransport {
                     }
                 }
                 
-                let task = URLSession.shared.dataTask(with: request) {
+                let task = session.dataTask(with: request) {
                     (data, response, error) in
                     if let error = error {
                         callback(.error(.requestError(response, error, data)))
