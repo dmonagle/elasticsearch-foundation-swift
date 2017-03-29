@@ -28,9 +28,9 @@ extension ESError : CustomStringConvertible {
         case .noConnectionsAvailable:
             return "No connections available"
         case .requestError(let response, let error, let data):
-            return "Request Error: \(error)\n\(response)\n\(data)"
+            return "Request Error: \(error)\n\(String(describing: response))\n\(String(describing: data))"
         case .invalidHttpResponse(let response):
-            return "Did not get a valid HTTP response: \n\(response)"
+            return "Did not get a valid HTTP response: \n\(String(describing: response))"
         case .invalidJsonResponse(let data):
             return "Invalid JSON response: \n\(data)"
         case .missingRequiredParameter(let name):

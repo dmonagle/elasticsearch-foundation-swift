@@ -92,7 +92,7 @@ open class ESConnection {
 extension ESConnection : CustomStringConvertible {
     open var description: String {
         var description = "<ESConnection host: \(host) "
-        if (isDead) {
+        if let deadSince = deadSince {
             description += "dead since \(deadSince)"
         }
         else {
