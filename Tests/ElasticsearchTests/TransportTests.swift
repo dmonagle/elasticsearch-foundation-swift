@@ -31,7 +31,7 @@ class TransportTest: XCTestCase {
             debugPrint("Error!")
             switch (error) {
             case .invalidJsonResponse(let data):
-                debugPrint(String(data: data, encoding: String.Encoding.utf8))
+                debugPrint(String(data: data, encoding: String.Encoding.utf8) ?? "")
 
             default:
                 debugPrint(error)
@@ -39,9 +39,7 @@ class TransportTest: XCTestCase {
         case .ok(let response, let body):
             debugPrint("Success!")
             debugPrint(response)
-            debugPrint(body)
-        default:
-            fatalError()
+            debugPrint(body ?? "")
         }
         
         let sniffer = ESSniffer(transport: transport)
@@ -61,9 +59,7 @@ class TransportTest: XCTestCase {
         case .ok(let response, let body):
             debugPrint("Success!")
             debugPrint(response)
-            debugPrint(body)
-        default:
-            fatalError()
+            debugPrint(body ?? "")
         }
     }
 
